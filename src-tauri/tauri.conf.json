@@ -1,6 +1,6 @@
 {
   "productName": "ASHNA AI CHAT",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "identifier": "com.ashna.chat",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -15,7 +15,8 @@
         "title": "ASHNA AI CHAT — Web",
         "url": "https://app.ashna.ai/",
         "width": 1100,
-        "height": 800
+        "height": 800,
+        "incognito": false
       }
     ],
     "security": {
