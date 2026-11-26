@@ -1,0 +1,26 @@
+{
+  "productName": "ASHNA AI CHAT",
+  "version": "0.1.0",
+  "identifier": "com.ashna.chat",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "ASHNA AI CHAT",
+        "width": 900,
+        "height": 700
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": false
+  }
+}
