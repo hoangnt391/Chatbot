@@ -1,6 +1,6 @@
 [package]
 name = "ashna-ai-chat"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 [lib]
 name = "ashna_ai_chat_lib"
