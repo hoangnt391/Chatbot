@@ -67,3 +67,47 @@ jobs:
           name: ASHNA-Android-ARM64-Debug-APK
           path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
+      - name: Prepare direct APK download
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find src-tauri/gen/android/app/build/outputs/apk -type f -name '*.apk' ! -name '*unsigned*' ! -name '*androidTest*')
+          if [ "${#apks[@]}" -ne 1 ]; then
+            printf 'Expected exactly one APK; found %s\n' "${#apks[@]}"
+            printf '%s\n' "${apks[@]}"
+            exit 1
+          fi
+          mkdir -p release
+          cp "${apks[0]}" release/ASHNA-AI-CHAT.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify release/ASHNA-AI-CHAT.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ASHNA-Direct-APK
+          path: release/ASHNA-AI-CHAT.apk
+          if-no-files-found: error
+  publish-android:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: android
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: ashna-android-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ASHNA-Direct-APK
+          path: release
+      - name: Publish APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}-android.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          gh release create "$TAG" release/ASHNA-AI-CHAT.apk --target "$GITHUB_SHA" --title "ASHNA AI CHAT $VERSION Android" --notes "ARM64 debug APK. Internet required. Not an official Ashna application." --latest
+          gh release view "$TAG" --json assets --jq '.assets[] | select(.name == "ASHNA-AI-CHAT.apk") | .url'
+          curl --fail --location --retry 3 --output /tmp/verified.apk "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/ASHNA-AI-CHAT.apk"
+          cmp release/ASHNA-AI-CHAT.apk /tmp/verified.apk
