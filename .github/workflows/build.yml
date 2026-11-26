@@ -15,7 +15,8 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      - run: npm run build
+      - name: Typecheck and build frontend
+        run: npm run build
   windows:
     needs: frontend
     runs-on: windows-2022
@@ -28,7 +29,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: npm install
       - run: npm run tauri -- icon assets/icon.svg
-      - run: npm run tauri -- build --bundles nsis
+      - name: Build Windows NSIS installer
+        run: npm run tauri -- build --bundles nsis
       - uses: actions/upload-artifact@v4
         with:
           name: ASHNA-Windows-EXE
@@ -36,7 +38,7 @@ jobs:
           if-no-files-found: error
   android:
     needs: frontend
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -46,22 +48,30 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
       - uses: android-actions/setup-android@v3
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android
       - name: Install Android SDK and NDK
         run: |
-          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
+          sdkmanager "platform-tools" "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0" "ndk;27.2.12479018"
           echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
-      - run: npm install
-      - run: npm run tauri -- android init
+      - name: Install frontend dependencies
+        run: npm install
+      - name: Generate desktop icons before native initialization
+        run: npm run tauri -- icon assets/icon.svg
+      - name: Initialize Android project
+        run: npm run tauri -- android init
         env:
           CI: 'true'
       - run: npm run tauri -- icon assets/icon.svg
-      - run: npm run tauri -- android build --debug --apk --target aarch64
+      - name: Build Android ARM64 APK
+        run: npm run tauri -- android build --debug --apk --target aarch64
+      - name: List Android outputs
+        if: always()
+        run: find src-tauri/gen/android/app/build/outputs -type f 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         with:
           name: ASHNA-Android-ARM64-Debug-APK
@@ -85,6 +95,15 @@ jobs:
           name: ASHNA-Direct-APK
           path: release/ASHNA-AI-CHAT.apk
           if-no-files-found: error
+      - name: Upload Android diagnostic reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ASHNA-Android-Diagnostics
+          path: |
+            src-tauri/gen/android/**/build/reports/**
+            src-tauri/gen/android/**/build/outputs/logs/**
+          if-no-files-found: ignore
   publish-android:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: android
